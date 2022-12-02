@@ -1,0 +1,203 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Pumps</title>
+    <style>
+        td {
+            padding: 5px;
+        }
+
+        button {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Список насосов</h2>
+    <div>
+        <input type="hidden" id="pumpId" />
+        <p>
+            Имя:<br />
+            <input id="pumpName" />
+        </p>
+        <p>
+            Напор:<br />
+            <input id="pumpH" type="number" />
+        </p>
+
+        <p>
+            Расход:<br />
+            <input id="pumpQ" type="number" />
+        </p>
+
+        <p>
+            <button id="saveBtn">Сохранить</button>
+            <button id="resetBtn">Сбросить</button>
+        </p>
+    </div>
+    <table>
+        <thead><tr><th>Имя</th><th>Напор</th><th>Расход</th><th></th></tr></thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script>
+    // Получение всех пользователей
+        async function getPumps() {
+            // отправляет запрос и получаем ответ
+            const response = await fetch("/api/pumps", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            // если запрос прошел нормально
+            if (response.ok === true) {
+                // получаем данные
+                const pumps = await response.json();
+                const rows = document.querySelector("tbody");
+                // добавляем полученные элементы в таблицу
+                pumps.forEach(pump => rows.append(row(pump)));
+            }
+
+        }
+        // Получение одного пользователя
+        async function getPump(id) {
+            const response = await fetch(`/api/pumps/${id}`, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const pump = await response.json();
+                document.getElementById("pumpId").value = pump.id;
+                document.getElementById("pumpName").value = pump.name;
+                document.getElementById("pumpH").value = pump.H;
+                document.getElementById("pumpQ").value = pump.Q;
+            }
+            else {
+                // если произошла ошибка, получаем сообщение об ошибке
+                const error = await response.json();
+                console.log(error.message); // и выводим его на консоль
+            }
+        }
+        // Добавление пользователя
+        async function createPump(pumpName, pumpH, pumpQ) {
+
+            const response = await fetch("api/pumps", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: pumpName,
+                    h: parseInt(pumpH, 10),
+                    q: parseInt(pumpQ, 10)
+                })
+            });
+            if (response.ok === true) {
+                const pump = await response.json();
+                document.querySelector("tbody").append(row(pump));
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+        // Изменение пользователя
+        async function editPump(pumpId, pumpName, pumpH, pumpQ) {
+            const response = await fetch("api/pumps", {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: pumpId,
+                    name: pumpName,
+                    h: parseInt(pumpH, 10),
+                    q: parseInt(pumpQ, 10)
+                })
+            });
+            if (response.ok === true) {
+                const pump = await response.json();
+                document.querySelector(`tr[data-rowid='${pump.id}']`).replaceWith(row(pump));
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+        // Удаление пользователя
+        async function deletePump(id) {
+            const response = await fetch(`/api/pumps/${id}`, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const pump = await response.json();
+                document.querySelector(`tr[data-rowid='${pump.id}']`).remove();
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        // сброс данных формы после отправки
+        function reset() {
+            document.getElementById("pumpId").value =
+            document.getElementById("pumpName").value =
+                document.getElementById("pumpH").value = "";
+            document.getElementById("pumpQ").value = "";
+        }
+        // создание строки для таблицы
+        function row(pump) {
+
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", pump.id);
+
+            const nameTd = document.createElement("td");
+            nameTd.append(pump.name);
+            tr.append(nameTd);
+
+            const HTd = document.createElement("td");
+            HTd.append(pump.h);
+            tr.append(HTd);
+
+            const QTd = document.createElement("td");
+            QTd.append(pump.q);
+            tr.append(QTd);
+
+
+
+            const linksTd = document.createElement("td");
+
+            const editLink = document.createElement("button");
+            editLink.append("Изменить");
+            editLink.addEventListener("click", async() => await getPump(pump.id));
+            linksTd.append(editLink);
+
+            const removeLink = document.createElement("button");
+            removeLink.append("Удалить");
+            removeLink.addEventListener("click", async () => await deletePump(pump.id));
+
+            linksTd.append(removeLink);
+            tr.appendChild(linksTd);
+
+            return tr;
+        }
+        // сброс значений формы
+        document.getElementById("resetBtn").addEventListener("click", () =>  reset());
+
+        // отправка формы
+        document.getElementById("saveBtn").addEventListener("click", async () => {
+
+            const id = document.getElementById("pumpId").value;
+            const name = document.getElementById("pumpName").value;
+            const h = document.getElementById("pumpH").value;
+            const q = document.getElementById("pumpQ").value;
+            if (id === "")
+                await createPump(name, h , q);
+            else
+                await editPump(id, name, h, q);
+            reset();
+        });
+
+        // загрузка пользователей
+        getPumps();
+    </script>
+</body>
